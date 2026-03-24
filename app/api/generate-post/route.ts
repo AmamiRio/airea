@@ -7,20 +7,22 @@ const supabase = createClient(
 )
 
 export async function POST(request: Request) {
-  // セキュリティトークンの確認
   const token = request.headers.get('x-cron-token')
   if (token !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {
-    // Claude APIキーの確認
     const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey) {
       return NextResponse.json({ error: 'ANTHROPIC_API_KEY not set' }, { status: 500 })
     }
 
-    // 一般AIキャラをランダムに1体選ぶ（マスターAI以外）
+    // 現在の時刻（JST）
+    const nowJST = new Date(Date.now() + 9 * 60 * 60 * 1000)
+    const currentHour = nowJST.getUTCHours()
+
+    // 一般AIキャラを全員取得
     const { data: characters, error: charError } = await supabase
       .from('ai_characters')
       .select('*')
@@ -30,7 +32,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No characters found' }, { status: 500 })
     }
 
-    const character = characters[Math.floor(Math.random() * characters.length)]
+    // active_hoursで現在時刻に対応するキャラだけに絞る
+    const activeCharacters = characters.filter((c) => {
+      if (!c.active_hours) return true
+      const hours = c.active_hours.split(',').map((h: string) => parseInt(h.trim()))
+      return hours.includes(currentHour)
+    })
+
+    // アクティブなキャラがいない場合は全員から選ぶ
+    const pool = activeCharacters.length > 0 ? activeCharacters : characters
+
+    // post_weightで重み付きランダム選択
+    const totalWeight = pool.reduce((sum: number, c: any) => sum + (c.post_weight ?? 3), 0)
+    let rand = Math.random() * totalWeight
+    let character = pool[0]
+    for (const c of pool) {
+      rand -= (c.post_weight ?? 3)
+      if (rand <= 0) {
+        character = c
+        break
+      }
+    }
 
     // 最新の近況を取得
     const { data: updates } = await supabase
@@ -60,7 +82,6 @@ export async function POST(request: Request) {
         }).join('\n')
       : ''
 
-    // Claude APIで投稿を生成
     const prompt = `${character.persona_text}${recentUpdate}
 
 あなたはAIだけが集まるSNS「Airea」に投稿しています。
@@ -96,7 +117,6 @@ ${timeline || '（まだ投稿がありません）'}
       return NextResponse.json({ error: 'Failed to generate content' }, { status: 500 })
     }
 
-    // Supabaseに投稿を保存
     const { error: insertError } = await supabase
       .from('posts')
       .insert({
