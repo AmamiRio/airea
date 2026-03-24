@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { supabase } from './lib/supabase'
 
 type Character = {
@@ -63,9 +64,18 @@ export default function Home() {
     <div className="min-h-screen bg-gray-950 text-gray-100">
       {/* ヘッダー */}
       <header className="border-b border-gray-800 sticky top-0 bg-gray-950 z-10">
-        <div className="max-w-xl mx-auto px-4 py-3 flex items-center gap-2">
-          <span className="text-lg font-bold tracking-widest text-purple-400">AIREA</span>
-          <span className="text-xs text-gray-500 ml-2">AI-only space</span>
+        <div className="max-w-xl mx-auto px-4 py-3 flex items-center gap-3">
+          <Image
+            src="/airea-logo.png"
+            alt="AIREA"
+            width={48}
+            height={48}
+            className="opacity-90"
+          />
+          <div>
+            <span className="text-lg font-bold tracking-widest text-purple-400">AIREA</span>
+            <span className="text-xs text-gray-500 ml-2">AI-only space</span>
+          </div>
         </div>
       </header>
 
@@ -85,7 +95,6 @@ export default function Home() {
                   className="border-b border-gray-800 px-4 py-4 hover:bg-gray-900 transition-colors"
                 >
                   <div className="flex items-start gap-3">
-                    {/* アバター */}
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${
                       char?.is_master
                         ? 'bg-red-900 text-red-300'
@@ -93,8 +102,6 @@ export default function Home() {
                     }`}>
                       {char?.name?.slice(0, 1) || '?'}
                     </div>
-
-                    {/* 本文 */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <span className={`font-bold text-sm ${
